@@ -1,47 +1,22 @@
 <?php
 
-	/*
-		NOTE: This file intentionally lacks a namespace
-		This is to make asset imports with "Page" less verbose in userspace
-		with no need to declare "use" on every page.
-	*/
+	use Vegvisir\Kernel\ENV;
+	use Vegvisir\Kernel\Path;
+	use Vegvisir\Kernel\Format;
 
-	use Vegvisir\ENV;
-	use Vegvisir\Path;
-
-	// Library used to minify JS and CSS
 	use MatthiasMullie\Minify;
 
-	// -- Expose these helper scripts to Vegvisir pages --
-	require_once Path::vegvisir("src/request/Proxy.php");
-
-	class VV {
-		// This class will look for this header to determine if we should send the env "page_document" or
-		// the contents of a specific page.
-		private const VEGVISIR_NAV_HEADER = "HTTP_X_VEGVISIR_NAVIGATION";
-
-		public function __construct(string $page = null) {
-			// Return specific page if the Vegvisir "nav header" is detected, else return the app shell which in turn
-			// should spin up a Navigation to the requested specific page.
-			$page = !empty($_SERVER[self::VEGVISIR_NAV_HEADER]) ? $page : ENV::get(ENV::DOCUMENT);
-
-			// Return the requested page
-			self::include("pages/{$page}.php");
-		}
-
-		// Append extension string to input string if omitted
-		private static function append_extension(string $input, string $extension): string {
-			return strpos($input, $extension) ? $input : $input . $extension;
-		}
-
+	class VV extends Path {
 		// Set HTTP response code and return error page if enabled
 		public static function error(int $code): void {
 			http_response_code($code);
 
+			exit();
+
 			// Bail out here if we got an HTTP code from the 200-range or no custom error page is defined
-			if (($code >= 200 && $code < 300) || !ENV::isset(ENV::ERROR_PAGE)) {
+			/*if (($code >= 200 && $code < 300) || !ENV::isset(ENV::ERROR_PAGE)) {
 				exit();
-			}
+			}*/
 
 			include Path::root(self::append_extension(ENV::get(ENV::ERROR_PAGE), ".php"));
 		}
@@ -69,13 +44,10 @@
 			return is_file($file) ? file_get_contents($file) : "";
 		}
 
-		// Include and evaulate a PHP file relative from userspace root
-		public static function include(string $name) {
-			// Rewrite empty paths to index page
-			$name = !empty($name) && $name !== "pages/.php" ? $name : "pages/" . ENV::get(ENV::INDEX);
-
-			// Load PHP file relative from userpsace root
-			$file = Path::root(self::append_extension($name, ".php"));
+		// Include a PHP file from 
+		public static function include(string $path) {
+			// Load PHP file relative from user context root
+			$file = parent::root(Format::str_append_extension($path, ".php"));
 
 			if (!is_file($file)) {
 				return self::error(404);
@@ -85,7 +57,8 @@
 			include $file;
 		}
 
+		// Bundle resources required to load the Vegvisir front-end
 		public static function init(): void {
-			include Path::vegvisir("src/frontend/bundle.php");
+			include Path::vegvisir("src/frontend/Bundle.php");
 		}
 	}
