@@ -15,6 +15,6 @@
 
 		// Append an extension string to another string if omitted
 		public static function str_append_extension(string $string, string $ext): string {
-			return substr($string, strlen($ext) * -1, strlen($ext)) ? $string : $string . $ext;
+			return substr($string, strlen($ext) * -1) ? $string : $string . $ext;
 		}
 	}

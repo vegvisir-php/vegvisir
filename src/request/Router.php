@@ -18,7 +18,7 @@
 
 		public function __construct() {
 			// Set pathname from request URI
-			$this->pathname = Format::str_strip_char_leading(parse_url($_SERVER["REQUEST_URI"], PHP_URL_PATH), "/");
+			$this->pathname = parse_url($_SERVER["REQUEST_URI"], PHP_URL_PATH);
 
 			// Parse JSON from request body into PHP $_POST superglobal
 			if (array_key_exists("HTTP_CONTENT_TYPE", $_SERVER) and $_SERVER["HTTP_CONTENT_TYPE"] === "application/json") {
@@ -37,16 +37,13 @@
 			parent::include(ENV::get(ENV::SITE_SHELL_PATH));
 		}
 
-		private function resp_page() {
-			parent::include(Path::make_pathname(
-				ENV::get(ENV::PUBLIC_PATH),
-				$this->pathname
-			));
+		private function resp_page(string $path) {
+			include $path;
 		}
 
 		private function resp_worker() {
 			header("Content-Type: text/javascript");
-			exit(file_get_contents(Path::vegvisir("src/frontend/js/navigation/Worker.js")));
+			exit((new Minify\JS(Path::vegvisir("src/frontend/js/navigation/Worker.js")))->minify());
 		}
 
 		private function resp_asset() {
@@ -64,26 +61,30 @@
 		}
 
 		private function route() {
-			if (empty($_SERVER[SOFTNAV_ENABLED_HEADER])) {
-				return $this->resp_shell();
-			}
-
 			// Return JavaScript for Vegvisir navigation Worker
 			if ($this->pathname === ENV::get(ENV::WORKER_PATHNAME)) {
 				return $this->resp_worker();
 			}
 
+			if (empty($_SERVER[SOFTNAV_ENABLED_HEADER])) {
+				return $this->resp_shell();
+			}
+
 			// Check if a PHP file exists in user context public directory
 			// It's very important for security that this check comes before the direct file extension check
-			if (file_exists(Path::public($this->pathname) . ".php")) {
-				return $this->return_page();
+			if ($this->pathname and is_file(Path::public($this->pathname) . ".php")) {
+				return $this->resp_page(Path::public($this->pathname) . ".php");
+			}
+
+			if ($this->pathname and is_file(Path::public($this->pathname) . "index.php")) {
+				return $this->resp_page(Path::public($this->pathname) . "index.php");
 			}
 
 			// Check file extension directly for public static content
-			if (file_exists(Path::public($this->filename))) {
-				return $this->return_asset();
+			if ($this->pathname and is_file(Path::public($this->pathname))) {
+				return $this->resp_asset();
 			}
 
-			return $this->return_error();
+			parent::error(404);
 		}
 	}

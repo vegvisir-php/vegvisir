@@ -6,6 +6,10 @@
 
 	use MatthiasMullie\Minify;
 
+	const VV_SHELL_HASH_OFFSET = -8;
+	const VV_SHELL_ID_HEADER = "X-Vegvisir-Target";
+	const VV_SHELL_SEPARATOR_STRING = "<!-- VEGVISIR MULTIPART SHELL END -->";
+
 	class VV extends Path {
 		// Set HTTP response code and return error page if enabled
 		public static function error(int $code): void {
@@ -55,6 +59,24 @@
 
 			// Import and evaluate PHP file
 			include $file;
+		}
+
+		public static function shell(string $path) {
+			ob_start();
+			self::include($path);
+
+			// Generate truncated hash of the shell path
+			$hash = substr(md5($path), VV_SHELL_HASH_OFFSET);
+
+			header(implode(" ", [VV_SHELL_ID_HEADER, $hash]));
+
+			// Add shell id attribute to VV_SHELL_TAGNAME while preserving any existing attributes
+			$content = str_replace("></vv-shell>", " vv-shell-id='{$hash}'></vv-shell>", ob_get_contents());
+
+			ob_clean();
+			echo $content;
+			echo VV_SHELL_SEPARATOR_STRING;
+			flush();
 		}
 
 		// Bundle resources required to load the Vegvisir front-end

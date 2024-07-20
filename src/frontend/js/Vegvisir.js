@@ -1,5 +1,4 @@
-console.log("hello");
-
+(new vegvisir.Navigation(window.location.pathname)).navigate();
 
 
 // Handle browser back/forward buttons
