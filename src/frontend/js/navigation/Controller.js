@@ -72,23 +72,11 @@ globalThis.vegvisir.Navigation = class Navigation {
 		return [...document.querySelectorAll("vv-shell")].map(element => element?.getAttribute("vv-shell-id"));
 	}
 
-	#pushHistory() {
-		// Bail out if history push has been disabled
-		if (!this.options.pushHistory) {
-			return;
-		}
-
-		window.history.pushState({
-			url: this.url.toString(),
-			options: this.options
-		}, "", this.url.toString());
-	}
-
 	/**
 	 * 
 	 * @param {MouseEvent} event 
 	 */
-	#anchorClickEventHandler(event) {
+	static #anchorClickEventHandler(event) {
 		const target = event.target.closest("a");
 		const nav = new Navigation(target.href);
 
@@ -134,6 +122,28 @@ globalThis.vegvisir.Navigation = class Navigation {
 		}
 	}
 
+	// Bind listeners to unbound anchor tags in the DOM
+	static bindAnchorElementListeners() {
+		[...document.querySelectorAll("a:not([vv-bound])")].forEach(element => {
+			// Mark this anchor tag as bound
+			element.setAttribute("vv-bound", true);
+
+			element.addEventListener("click", (event) => Navigation.#anchorClickEventHandler(event));
+		});
+	}
+
+	#pushHistory() {
+		// Bail out if history push has been disabled
+		if (!this.options.pushHistory) {
+			return;
+		}
+
+		window.history.pushState({
+			url: this.url.toString(),
+			options: this.options
+		}, "", this.url.toString());
+	}
+
 	/**
 	 * 
 	 * @param {HTMLElement} target 
@@ -164,7 +174,8 @@ globalThis.vegvisir.Navigation = class Navigation {
 			target.appendChild(tag);
 		});
 
-		[...target.getElementsByTagName("a")].forEach(element => element.addEventListener("click", (event) => this.#anchorClickEventHandler(event)));
+		// Bind new anchor tags
+		Navigation.bindAnchorElementListeners();
 	}
 
 	/**

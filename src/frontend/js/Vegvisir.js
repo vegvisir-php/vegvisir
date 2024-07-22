@@ -1,3 +1,6 @@
+// Bind anchor tags in root shell on load
+vegvisir.Navigation.bindAnchorElementListeners();
+
 (new vegvisir.Navigation(window.location.pathname)).navigate();
 
 window.addEventListener("popstate", (event) => {

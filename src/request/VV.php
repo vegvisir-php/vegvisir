@@ -22,15 +22,15 @@
 			die(self::include(ENV::get(ENV::SITE_ERROR_PAGE)));
 		}
 
-		// Load and return minified CSS file from absolute path or CSS assets folder
+		// Load and return minified CSS from file
 		public static function css(string $file, bool $relative = true): string {
-			$file = $relative ? Path::root("assets/css/" . self::append_extension($file, ".css")) : $file;
+			$file = $relative ? Path::root(Format::str_append_extension($file, ".css")) : $file;
 
 			// Import and minify CSS stylesheet or return empty string if not found
 			return is_file($file) ? (new Minify\CSS($file))->minify() : "";
 		}
 
-		// Load and return minified JS file from absolute path or JS assets folder
+		// Load and return minified JS from file
 		public static function js(string $file, bool $relative = true): string {
 			$file = $relative ? Path::root(Format::str_append_extension($file, ".js")) : $file;
 
@@ -38,9 +38,9 @@
 			return is_file($file) ? (new Minify\JS($file))->minify() : "";
 		}
 
-		// Load and return contents of a file from absolute path or media assets folder
-		public static function media(string $file, bool $relative = true): string {
-			$file = $relative ? Path::root("assets/media/" . $file) : $file;
+		// Load and return contents of a file
+		public static function asset(string $file, bool $relative = true): string {
+			$file = $relative ? Path::root($file) : $file;
 			
 			return is_file($file) ? file_get_contents($file) : "";
 		}

@@ -14,7 +14,7 @@
 	require_once Path::vegvisir("src/request/Controller.php");
 
 	class Router extends VV {
-		private string $pathname;
+		private readonly string $pathname;
 
 		public function __construct() {
 			// Set pathname from request URI
@@ -33,6 +33,11 @@
 			// Bail out if the request is not for an HTML document
 			if (!Controller::client_accepts_html()) {
 				return parent::error(404);
+			}
+
+			// Return 404 response code on top shell if landingpage is not found to prevent a soft 404
+			if (!$this->try_files()) {
+				http_response_code(404);
 			}
 
 			parent::include(ENV::get(ENV::SITE_SHELL_PATH));
@@ -61,31 +66,43 @@
 			exit(file_get_contents($file));
 		}
 
+		// Locate a page and return its absolute path if found
+		private function try_files(): ?string {
+			if (!$this->pathname) {
+				return null;
+			}
+
+			if (is_file(Path::public($this->pathname) . ".php")) {
+				return Path::public($this->pathname) . ".php";
+			}
+
+			if (is_file(Path::public($this->pathname) . "/index.php")) {
+				return Path::public($this->pathname) . "/index.php";
+			}
+
+			return null;
+		}
+
 		private function route() {
-			// Return JavaScript for Vegvisir navigation Worker
+			// Check absolute match against magic pathname for the Vegvisir Navigation Worker
 			if ($this->pathname === ENV::get(ENV::WORKER_PATHNAME)) {
 				return $this->resp_worker();
 			}
 
+			// Return the top shell on initial load to enable soft navigation
 			if (!Controller::is_softnav_enabled()) {
 				return $this->resp_top_shell();
 			}
 
-			// Check if a PHP file exists in user context public directory
-			// It's very important for security that this check comes before the direct file extension check
-			if ($this->pathname and is_file(Path::public($this->pathname) . ".php")) {
-				return $this->resp_page(Path::public($this->pathname) . ".php");
-			}
-
-			if ($this->pathname and is_file(Path::public($this->pathname) . "/index.php")) {
-				return $this->resp_page(Path::public($this->pathname) . "/index.php");
-			}
-
-			// Check file extension directly for public static content
+			// Check for an absolute match against an asset in the user context public folder
 			if ($this->pathname and is_file(Path::public($this->pathname))) {
 				return $this->resp_asset();
 			}
 
-			parent::error(404);
+			// Try to locate a page using various patterns or return 404 if no match
+			$page = $this->try_files();
+			return !empty($page) 
+				? $this->resp_page($page) 
+				: parent::error(404);
 		}
 	}
