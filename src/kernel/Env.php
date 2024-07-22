@@ -8,6 +8,7 @@
 	enum ENV: string {
 		// Site configuration variables
 		case SITE_ROOT_PATH      = "root_path";
+		case SITE_ERROR_PAGE     = "error_page";
 		case SITE_SHELL_PATH     = "shell_path";
 		case SITE_PUBLIC_PATH    = "public_path";
 		case SITE_INDEX_FILENAME = "index_file_name";
@@ -15,10 +16,11 @@
 		// Core variables
 		case WORKER_PATHNAME  = "worker_magic_pathname";
 
-		public function get_default(): string {
+		public function get_default(): ?string {
 			return match ($this) {
 				// Site configuration variables
-				ENV::SITE_ROOT_PATH      => "",
+				ENV::SITE_ROOT_PATH      => null,
+				ENV::SITE_ERROR_PAGE     => null,
 				ENV::SITE_SHELL_PATH     => "public/shell.php",
 				ENV::SITE_PUBLIC_PATH    => "public/",
 				ENV::SITE_INDEX_FILENAME => "index.php",

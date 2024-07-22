@@ -6,12 +6,12 @@
 	use Vegvisir\Kernel\ENV;
 	use Vegvisir\Kernel\Path;
 	use Vegvisir\Kernel\Format;
+	use Vegvisir\Request\Controller;
 
 	use MatthiasMullie\Minify;
 
 	require_once Path::vegvisir("src/request/VV.php");
-
-	const SOFTNAV_ENABLED_HEADER = "HTTP_X_VEGVISIR_NAVIGATION";
+	require_once Path::vegvisir("src/request/Controller.php");
 
 	class Router extends VV {
 		private string $pathname;
@@ -28,10 +28,11 @@
 			$this->route();
 		}
 
-		private function resp_shell() {
+		// Return the outer most shell required to initialize the Vegvisir front-end
+		private function resp_top_shell() {
 			// Bail out if the request is not for an HTML document
-			if (strpos($_SERVER["HTTP_ACCEPT"] ?? "", "text/html") === false) {
-				return parent::error(204);
+			if (!Controller::client_accepts_html()) {
+				return parent::error(404);
 			}
 
 			parent::include(ENV::get(ENV::SITE_SHELL_PATH));
@@ -66,8 +67,8 @@
 				return $this->resp_worker();
 			}
 
-			if (empty($_SERVER[SOFTNAV_ENABLED_HEADER])) {
-				return $this->resp_shell();
+			if (!Controller::is_softnav_enabled()) {
+				return $this->resp_top_shell();
 			}
 
 			// Check if a PHP file exists in user context public directory
@@ -76,8 +77,8 @@
 				return $this->resp_page(Path::public($this->pathname) . ".php");
 			}
 
-			if ($this->pathname and is_file(Path::public($this->pathname) . "index.php")) {
-				return $this->resp_page(Path::public($this->pathname) . "index.php");
+			if ($this->pathname and is_file(Path::public($this->pathname) . "/index.php")) {
+				return $this->resp_page(Path::public($this->pathname) . "/index.php");
 			}
 
 			// Check file extension directly for public static content

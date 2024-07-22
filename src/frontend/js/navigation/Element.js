@@ -1,13 +1,32 @@
 class HTMLVegvisirShellElement extends HTMLElement {
-	isTopShell = false;
+	isRootShell = false;
 
 	constructor() {
 		super();
 
+		// This element is the root shell
 		if (this.parentElement === document.body) {
-			this.isTopShell = true;
-			this.setAttribute("vv-top-page", window.location.pathname);
+			this.isRootShell = true;
+			this.setShellId("/");
 		}
+
+		this.setLoading(false);
+	}
+
+	/**
+	 * 
+	 * @param {String} id 
+	 */
+	setShellId(id = "") {
+		this.setAttribute("vv-shell-id", id);
+	}
+
+	/**
+	 * 
+	 * @param {Boolean} state 
+	 */
+	setLoading(state = true) {
+		this.setAttribute("vv-loading", state);
 	}
 }
 

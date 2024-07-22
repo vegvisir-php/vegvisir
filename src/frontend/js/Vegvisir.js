@@ -1,19 +1,18 @@
 (new vegvisir.Navigation(window.location.pathname)).navigate();
 
-
-// Handle browser back/forward buttons
-/*window.addEventListener("popstate", (event) => {
+window.addEventListener("popstate", (event) => {
 	event.preventDefault();
 
-	// This event does not have any state data. Ignore it
+	// Bail out if the event doesn't contain state data, its probably another site entirely
 	if (event.state === null) {
 		return;
 	}
 
-	// Force pushHistory to false as we don't want this navigation on the stack
+	// Turn off history pushing forcefully, we don't want backtracking on the history stack
 	event.state.options.pushHistory = false;
 	
+	// Perform a Vegvisir softnav to url if state has a pathname key
 	if ("url" in event.state) {
-		return new globalThis.vv.Navigation(event.state.url, event.state.options).navigate();
+		return (new vegvisir.Navigation(new URL(event.state.url), event.state.options)).navigate();
 	}
-});*/
+});

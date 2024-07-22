@@ -23,12 +23,19 @@ globalThis.vegvisir.Navigation = class Navigation {
 	}
 
 	abort = new AbortController();
+	options = {
+		pushHistory: true
+	}
 
 	/**
 	 * Create a new Vegvisir soft navigation
 	 * @param {URL|String|null} href 
+	 * @param {Object} options
 	 */
-	constructor(href = null) {
+	constructor(href = null, options = {}) {
+		// Merge options with defaults
+		Object.assign(this.options, options);
+
 		// Create URL object from sources
 		switch (href.constructor) {
 			case URL:
@@ -36,7 +43,11 @@ globalThis.vegvisir.Navigation = class Navigation {
 				break;
 
 			case String:
-				this.url = new URL(window.location.origin + href);
+				try {
+					this.url = new URL(href);
+				} catch {
+					this.url = new URL(window.location.origin + href);
+				}
 				break;
 
 			default:
@@ -46,13 +57,90 @@ globalThis.vegvisir.Navigation = class Navigation {
 	}
 
 	/**
+	 * Return the top most shell element
+	 * @returns {HTMLVegvisirShellElement}
+	 */
+	static get #rootShellElement() {
+		return document.querySelector("vv-shell[vv-shell-id='/']");
+	}
+
+	/**
 	 * Return an array of id strings for each loaded Vegvisir shell
 	 * @returns {Array}
 	 */
-	#getLoadedShells() {
-		return [...document.querySelectorAll("vv-shell")].map(element => element?.getAttribute("vv-shell-id") ?? "root");
+	static get #loadedShells() {
+		return [...document.querySelectorAll("vv-shell")].map(element => element?.getAttribute("vv-shell-id"));
 	}
 
+	#pushHistory() {
+		// Bail out if history push has been disabled
+		if (!this.options.pushHistory) {
+			return;
+		}
+
+		window.history.pushState({
+			url: this.url.toString(),
+			options: this.options
+		}, "", this.url.toString());
+	}
+
+	/**
+	 * 
+	 * @param {MouseEvent} event 
+	 */
+	#anchorClickEventHandler(event) {
+		const target = event.target.closest("a");
+		const nav = new Navigation(target.href);
+
+		// Bail out if the main mouse button was not pressed or destination is on another origin
+		if (event.button !== 0 || nav.url.origin !== window.location.origin) {
+			return;
+		}
+
+		const mode = target.getAttribute("vv-mode") ?? Navigation.MODE.REPLACE;
+		const position = target.getAttribute("vv-position") ?? Navigation.POSITION.BEFOREEND;
+
+		event.preventDefault();
+
+		switch (target.getAttribute("target") ?? Navigation.TARGET.TOP) {
+			// Navigate with clicked anchor tag as target
+			case Navigation.TARGET.SELF:
+				// Replace anchor tag with page contents if inner DOM is being modified
+				if ([Navigation.POSITION.BEFOREEND, Navigation.POSITION.AFTERBEGIN].includes(position)) {
+					// Append loaded content after anchor tag
+					nav.navigate(target, Navigation.POSITION.AFTEREND, mode);
+					// Remove the anchor tag element
+					return target.remove();
+				}
+
+				nav.navigate(target);
+				break;
+
+			// Default browser behavior
+			case Navigation.TARGET.BLANK:
+				open(target.href);
+				break;
+
+			// Navigate with closest HTMLVegvisirShellElement as the target
+			case Navigation.TARGET.PARENT:
+				nav.navigate(target.closest("vv-shell"));
+				break;
+
+			// Navigate with the top most HTMLVegvisirShellElement as the target
+			default:
+			case Navigation.TARGET.TOP:
+				nav.navigate(Navigation.#rootShellElement);
+				break;
+		}
+	}
+
+	/**
+	 * 
+	 * @param {HTMLElement} target 
+	 * @param {String} html 
+	 * @param {Navigation.POSITION} position 
+	 * @param {Navigation.MODE} mode 
+	 */
 	#setTargetHtml(target, html, position , mode) {
 		if (mode === Navigation.MODE.REPLACE) {
 			target.innerHTML = "";
@@ -75,6 +163,8 @@ globalThis.vegvisir.Navigation = class Navigation {
 			script.remove();
 			target.appendChild(tag);
 		});
+
+		[...target.getElementsByTagName("a")].forEach(element => element.addEventListener("click", (event) => this.#anchorClickEventHandler(event)));
 	}
 
 	/**
@@ -100,9 +190,11 @@ globalThis.vegvisir.Navigation = class Navigation {
 			}
 
 			return this.#setTargetHtml(
-				document.querySelector(event.data.responseTarget),
+				// Use root shell if target shell id can not be found
+				document.querySelector(`vv-shell[vv-shell-id="${event.data.responseTarget}"]`) ?? Navigation.#rootShellElement,
 				event.data.responseBody,
-				Navigation.POSITION.SELF,
+				// Replace inner DOM with response body
+				Navigation.POSITION.BEFOREEND,
 				Navigation.MODE.REPLACE
 			);
 		}, { signal: this.abort.signal });
@@ -111,19 +203,19 @@ globalThis.vegvisir.Navigation = class Navigation {
 		worker.postMessage({
 			requestId: requestId,
 			requestUrl: this.url.toString(),
-			loadedShells: this.#getLoadedShells()
+			loadedShells: Navigation.#loadedShells
 		});
 	}
 
 	/**
-	 * Navigate an HTMLElement to the provided URL
-	 * @param {HTMLElement|String} target 
+	 * Navigate an HTMLElement or Navigation.TARGET to the instanced URL
+	 * @param {HTMLElement|Navigation.TARGET|null} target 
 	 * @param {Navigation.POSITION} position 
 	 * @param {Navigation.MODE} mode 
 	 */
 	async navigate(target = Navigation.TARGET.TOP, position = Navigation.POSITION.BEFOREEND, mode = Navigation.MODE.REPLACE) {
-		if (target === Navigation.TARGET.TOP) {
-			target = document.querySelector("[vv-top-page]");
+		if (!target || target === Navigation.TARGET.TOP) {
+			target = Navigation.#rootShellElement;
 		}
 
 		target.setAttribute("vv-loading", true);
@@ -131,5 +223,7 @@ globalThis.vegvisir.Navigation = class Navigation {
 		const page = await this.#getPage(target, position, mode);
 
 		target.setAttribute("vv-loading", false);
+
+		this.#pushHistory();
 	}
 }

@@ -1,6 +1,6 @@
 const VV_SHELL_ID_HEADER = "X-Vegvisir-Target";
 const SOFTNAV_ENABLED_HEADER = "X-Vegvisir-Navigation";
-const VV_SHELL_SEPARATOR_STRING = "<!-- VEGVISIR MULTIPART SHELL END -->";
+const VV_SHELL_SEPARATOR_STRING = "<!-- VEGVISIR MULTIPART SHELL START -->";
 
 class NavigationEvent {
 	fetchOptions = {
@@ -44,12 +44,17 @@ class NavigationEvent {
 		const body = await response.text();
 
 		if (body.includes(VV_SHELL_SEPARATOR_STRING)) {
-			const parts = body.split(VV_SHELL_SEPARATOR_STRING, 1);
-			this.#output(206, parts[0]);
+			const parts = body.split(VV_SHELL_SEPARATOR_STRING, 2);
+
+			// Output shell HTML as partial content
+			this.#output(206, parts[1]);
+			// Output page HTML with shell id as target
 			this.#output(response.status, parts[0], response.headers.get(VV_SHELL_ID_HEADER));
+
+			return;
 		}
 
-		return this.#output(response.status, body);
+		return this.#output(response.status, body, response.headers.get(VV_SHELL_ID_HEADER));
 	}
 }
 
