@@ -76,59 +76,63 @@ globalThis.vegvisir.Navigation = class Navigation {
 	 * 
 	 * @param {MouseEvent} event 
 	 */
-	static #anchorClickEventHandler(event) {
-		const target = event.target.closest("a");
-		const nav = new Navigation(target.href);
+	static #clickEventHandler(event) {
+		const element = event.target.closest(":is(a, [vv])");
+		const nav = new Navigation(element.href ?? element.getAttribute("vv"));
 
 		// Bail out if the main mouse button was not pressed or destination is on another origin
-		if (event.button !== 0 || nav.url.origin !== window.location.origin) {
+		if (event.button !== 0) {
 			return;
 		}
-
-		const mode = target.getAttribute("vv-mode") ?? Navigation.MODE.REPLACE;
-		const position = target.getAttribute("vv-position") ?? Navigation.POSITION.BEFOREEND;
+		
+		const target = element.getAttribute("target") ?? Navigation.TARGET.TOP;
+		const mode = element.getAttribute("vv-mode") ?? Navigation.MODE.REPLACE;
+		const position = element.getAttribute("vv-position") ?? Navigation.POSITION.BEFOREEND;
 
 		event.preventDefault();
 
-		switch (target.getAttribute("target") ?? Navigation.TARGET.TOP) {
+		switch (target) {
 			// Navigate with clicked anchor tag as target
 			case Navigation.TARGET.SELF:
 				// Replace anchor tag with page contents if inner DOM is being modified
 				if ([Navigation.POSITION.BEFOREEND, Navigation.POSITION.AFTERBEGIN].includes(position)) {
 					// Append loaded content after anchor tag
-					nav.navigate(target, Navigation.POSITION.AFTEREND, mode);
+					nav.navigate(element, Navigation.POSITION.AFTEREND, mode);
 					// Remove the anchor tag element
-					return target.remove();
+					return element.remove();
 				}
 
-				nav.navigate(target);
+				nav.navigate(element);
 				break;
 
 			// Default browser behavior
 			case Navigation.TARGET.BLANK:
-				open(target.href);
+				open(element.href);
 				break;
 
 			// Navigate with closest HTMLVegvisirShellElement as the target
 			case Navigation.TARGET.PARENT:
-				nav.navigate(target.closest("vv-shell"));
+				nav.navigate(element.closest("vv-shell"));
 				break;
 
 			// Navigate with the top most HTMLVegvisirShellElement as the target
-			default:
 			case Navigation.TARGET.TOP:
 				nav.navigate(Navigation.#rootShellElement);
+				break;
+
+			default:
+				nav.navigate(document.querySelector(target));
 				break;
 		}
 	}
 
 	// Bind listeners to unbound anchor tags in the DOM
-	static bindAnchorElementListeners() {
-		[...document.querySelectorAll("a:not([vv-bound])")].forEach(element => {
+	static bindElements() {
+		[...document.querySelectorAll(":is(a, [vv]):not([vv-bound])")].forEach(element => {
 			// Mark this anchor tag as bound
 			element.setAttribute("vv-bound", true);
 
-			element.addEventListener("click", (event) => Navigation.#anchorClickEventHandler(event));
+			element.addEventListener("click", (event) => Navigation.#clickEventHandler(event));
 		});
 	}
 
@@ -175,7 +179,7 @@ globalThis.vegvisir.Navigation = class Navigation {
 		});
 
 		// Bind new anchor tags
-		Navigation.bindAnchorElementListeners();
+		Navigation.bindElements();
 	}
 
 	/**
@@ -220,21 +224,30 @@ globalThis.vegvisir.Navigation = class Navigation {
 
 	/**
 	 * Navigate an HTMLElement or Navigation.TARGET to the instanced URL
-	 * @param {HTMLElement|Navigation.TARGET|null} target 
+	 * @param {HTMLElement|Navigation.TARGET} target 
 	 * @param {Navigation.POSITION} position 
 	 * @param {Navigation.MODE} mode 
 	 */
-	async navigate(target = Navigation.TARGET.TOP, position = Navigation.POSITION.BEFOREEND, mode = Navigation.MODE.REPLACE) {
-		if (!target || target === Navigation.TARGET.TOP) {
-			target = Navigation.#rootShellElement;
+	async navigate(target = Navigation.#rootShellElement, position = Navigation.POSITION.BEFOREEND, mode = Navigation.MODE.REPLACE) {
+		// Bail out if target is falsy
+		if (!target) {
+			console.warn("Vegvisir:Navigate:Failed to soft-navigate falsy target");
+			return;
 		}
 
 		target.setAttribute("vv-loading", true);
-
-		const page = await this.#getPage(target, position, mode);
-
+		
+		await this.#getPage(target, position, mode);
+		
 		target.setAttribute("vv-loading", false);
+		target.setAttribute("vv-page", this.url.pathname);
 
-		this.#pushHistory();
+		if (target === Navigation.#rootShellElement) {
+			// Set current top page pathname on body tag if root shell is the target
+			document.body.setAttribute("vv-top-page", this.url.pathname);
+
+			this.#pushHistory();
+		}
 	}
+
 }

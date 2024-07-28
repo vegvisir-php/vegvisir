@@ -8,7 +8,7 @@
 	use MatthiasMullie\Minify;
 
 	const VV_SHELL_HASH_OFFSET = -8;
-	const VV_SHELL_SEPARATOR_STRING = "<!-- VEGVISIR MULTIPART SHELL START -->";
+	const VV_SHELL_ID_STRING = "<![CDATA[VV_SHELL:%s]]>";
 
 	class VV extends Path {
 		// Set HTTP response code and return error page if enabled
@@ -59,20 +59,20 @@
 		}
 
 		public static function shell(string $path) {
+			// Load shell from file into new buffer
+			ob_start();
+
 			// Generate truncated hash of the shell path
 			$hash = substr(md5($path), VV_SHELL_HASH_OFFSET);
-			// Send response header with shell hash as target
-			Controller::set_softnav_target($hash);
+
+			// Add CDATA separator between page and shell content with shell hash for Worker to parse
+			echo sprintf(VV_SHELL_ID_STRING, $hash);
 
 			// Bail out if shell has already been loaded by the client
 			if (in_array($hash, Controller::get_loaded_shells())) {
-				return;
+				return flush();
 			}
 
-			// Load shell from file into new buffer
-			ob_start();
-			// Add separator between page HTML and upcoming shell HTML
-			echo VV_SHELL_SEPARATOR_STRING;
 			self::include($path);
 
 			// Extract generated HTML from shell in buffer and add shell id as an attribute to <vv-shell>

@@ -7,7 +7,7 @@ class HTMLVegvisirShellElement extends HTMLElement {
 		// This element is the root shell
 		if (this.parentElement === document.body) {
 			this.isRootShell = true;
-			this.setShellId("/");
+			this.#setShellId("/");
 		}
 
 		this.setLoading(false);
@@ -17,7 +17,7 @@ class HTMLVegvisirShellElement extends HTMLElement {
 	 * 
 	 * @param {String} id 
 	 */
-	setShellId(id = "") {
+	#setShellId(id = "") {
 		this.setAttribute("vv-shell-id", id);
 	}
 
@@ -27,6 +27,17 @@ class HTMLVegvisirShellElement extends HTMLElement {
 	 */
 	setLoading(state = true) {
 		this.setAttribute("vv-loading", state);
+	}
+
+	/**
+	 * 
+	 * @param {URL|String|null} url 
+	 * @param {vegvisir.Navigation.POSITION} position 
+	 * @param {vegvisir.Navigation.MODE} mode 
+	 * @returns 
+	 */
+	async navigate(url, position, mode) {
+		return await (new vegvisir.Navigation(url)).navigate(this, position, mode);
 	}
 }
 

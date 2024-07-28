@@ -1,14 +1,14 @@
 // Bind anchor tags in root shell on load
-vegvisir.Navigation.bindAnchorElementListeners();
+vegvisir.Navigation.bindElements();
 
 (new vegvisir.Navigation(window.location.pathname)).navigate();
 
 window.addEventListener("popstate", (event) => {
 	event.preventDefault();
 
-	// Bail out if the event doesn't contain state data, its probably another site entirely
+	// Step back if event doesn't contain data. This entry was probably a [non root shell] soft-navigation from an anchor tag
 	if (event.state === null) {
-		return;
+		return window.history.back();
 	}
 
 	// Turn off history pushing forcefully, we don't want backtracking on the history stack

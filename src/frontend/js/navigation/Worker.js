@@ -1,6 +1,5 @@
-const VV_SHELL_ID_HEADER = "X-Vegvisir-Target";
+const VV_SHELL_ID = /<!\[CDATA\[VV_SHELL:(.*?)\]\]>/;
 const SOFTNAV_ENABLED_HEADER = "X-Vegvisir-Navigation";
-const VV_SHELL_SEPARATOR_STRING = "<!-- VEGVISIR MULTIPART SHELL START -->";
 
 class NavigationEvent {
 	fetchOptions = {
@@ -42,19 +41,26 @@ class NavigationEvent {
 	async #navigate() {
 		const response = await this.#fetch();
 		const body = await response.text();
+		const shell = body.match(VV_SHELL_ID);
 
-		if (body.includes(VV_SHELL_SEPARATOR_STRING)) {
-			const parts = body.split(VV_SHELL_SEPARATOR_STRING, 2);
+		// Return response body directly if it doesn't contain a multipart shell
+		if (!shell) {
+			return this.#output(response.status, body);
+		}
+		
+		// Expand page and shell HTML into separate variables
+		const [pageHtml, shellHtml] = body.split(shell[0], 2);
 
-			// Output shell HTML as partial content
-			this.#output(206, parts[1]);
-			// Output page HTML with shell id as target
-			this.#output(response.status, parts[0], response.headers.get(VV_SHELL_ID_HEADER));
-
-			return;
+		// Bail out with shell id as target if there is no shell HTML to parse, this means the client already has this shell loaded
+		if (!shellHtml) {
+			return this.#output(response.status, body, shell[1]);	
 		}
 
-		return this.#output(response.status, body, response.headers.get(VV_SHELL_ID_HEADER));
+		// Output shell HTML as partial content
+		this.#output(206, shellHtml);
+		
+		// Output page HTML with shell id as target
+		return this.#output(response.status, pageHtml, shell[1]);
 	}
 }
 

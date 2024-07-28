@@ -89,14 +89,14 @@
 				return $this->resp_worker();
 			}
 
-			// Return the top shell on initial load to enable soft navigation
-			if (!Controller::is_softnav_enabled()) {
-				return $this->resp_top_shell();
-			}
-
 			// Check for an absolute match against an asset in the user context public folder
 			if ($this->pathname and is_file(Path::public($this->pathname))) {
 				return $this->resp_asset();
+			}
+
+			// Return the top shell on initial load to enable soft navigation
+			if (!Controller::is_softnav_enabled()) {
+				return $this->resp_top_shell();
 			}
 
 			// Try to locate a page using various patterns or return 404 if no match
