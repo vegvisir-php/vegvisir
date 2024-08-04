@@ -81,7 +81,7 @@ globalThis.vegvisir.Navigation = class Navigation {
 		const nav = new Navigation(element.href ?? element.getAttribute("vv"));
 
 		// Bail out if the main mouse button was not pressed or destination is on another origin
-		if (event.button !== 0) {
+		if (event.button !== 0 || nav.url.origin !== window.location.origin) {
 			return;
 		}
 		
