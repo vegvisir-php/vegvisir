@@ -132,7 +132,10 @@ globalThis.vegvisir.Navigation = class Navigation {
 			// Mark this anchor tag as bound
 			element.setAttribute("vv-bound", true);
 
-			element.addEventListener("click", (event) => Navigation.#clickEventHandler(event));
+			// Experimental: Load page on mousedown instead of click
+			element.addEventListener("mousedown", (event) => Navigation.#clickEventHandler(event));
+			// Prevent default click behavior which causes the page to reload
+			element.addEventListener("click", (event) => event.preventDefault());
 		});
 	}
 

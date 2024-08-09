@@ -39,7 +39,7 @@
 		}
 
 		// Load and return contents of a file
-		public static function asset(string $file, bool $relative = true): string {
+		public static function embed(string $file, bool $relative = true): string {
 			$file = $relative ? Path::root($file) : $file;
 			
 			return is_file($file) ? file_get_contents($file) : "";
