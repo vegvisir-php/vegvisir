@@ -1,4 +1,4 @@
-const VV_SHELL_ID = /<!\[CDATA\[VV_SHELL:(.*?)\]\]>/;
+const VV_SHELL_MULTIPART_BOUNDARY = /<!\[CDATA\[VV_SHELL:(.*?)\]\]>/;
 const SOFTNAV_ENABLED_HEADER = "X-Vegvisir-Navigation";
 
 class NavigationEvent {
@@ -41,7 +41,7 @@ class NavigationEvent {
 	async #navigate() {
 		const response = await this.#fetch();
 		const body = await response.text();
-		const shell = body.match(VV_SHELL_ID);
+		const shell = body.match(VV_SHELL_MULTIPART_BOUNDARY);
 
 		// Return response body directly if it doesn't contain a multipart shell
 		if (!shell) {

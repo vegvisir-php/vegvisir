@@ -1,6 +1,11 @@
 const worker = new Worker(globalThis.vegvisir.WORKER_PATHNAME);
 
 globalThis.vegvisir.Navigation = class Navigation {
+	static EVENTS = {
+		STARTED: "navstarted",
+		FINISHED: "navfinished"
+	};
+
 	// https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a#target
 	static TARGET = {
 		TOP: "_top",
@@ -80,9 +85,14 @@ globalThis.vegvisir.Navigation = class Navigation {
 		const element = event.target.closest(":is(a, [vv])");
 		const nav = new Navigation(element.href ?? element.getAttribute("vv"));
 
-		// Bail out if the main mouse button was not pressed or destination is on another origin
-		if (event.button !== 0 || nav.url.origin !== window.location.origin) {
+		// Bail out if the main mouse button was not pressed
+		if (event.button !== 0) {
 			return;
+		}
+
+		// Performa a normal navigation to pages on other origins
+		if (nav.url.origin !== window.location.origin) {
+			return window.location.href = nav.url.toString();
 		}
 		
 		const target = element.getAttribute("target") ?? Navigation.TARGET.TOP;
@@ -187,6 +197,24 @@ globalThis.vegvisir.Navigation = class Navigation {
 
 	/**
 	 * 
+	 * @param {Navigation.EVENTS|String} type 
+	 * @param {HTMLElement} target 
+	 */
+	#dispatchEvent(type, target) {
+		const event = new CustomEvent(type, {
+			cancelable: type === Navigation.EVENTS.STARTED,
+			detail: {
+				target: target
+			}
+		});
+
+		// Always dispatch event on target element and document (for "catch all")
+		target.dispatchEvent(event);
+		document.dispatchEvent(event);
+	}
+
+	/**
+	 * 
 	 * @param {HTMLElement} target 
 	 * @param {Navigation.POSITION} position 
 	 * @param {Navigation.MODE} mode 
@@ -203,18 +231,26 @@ globalThis.vegvisir.Navigation = class Navigation {
 				return;
 			}
 
+			// Reponse does not contain an embeded shell
 			if (!event.data.responseTarget) {
 				return this.#setTargetHtml(target, event.data.responseBody, position, mode);
 			}
 
-			return this.#setTargetHtml(
-				// Use root shell if target shell id can not be found
-				document.querySelector(`vv-shell[vv-shell-id="${event.data.responseTarget}"]`) ?? Navigation.#rootShellElement,
+			// Use root shell if target shell id can not be found
+			const targetShell = document.querySelector(`vv-shell[vv-shell-id="${event.data.responseTarget}"]`) ?? Navigation.#rootShellElement;
+
+			this.#setTargetHtml(
+				targetShell,
 				event.data.responseBody,
 				// Replace inner DOM with response body
 				Navigation.POSITION.BEFOREEND,
 				Navigation.MODE.REPLACE
 			);
+
+			// Dispatch event on target shell if not root shell, the root shell will already dispatch an event upstream
+			if (targetShell !== Navigation.#rootShellElement) {
+				this.#dispatchEvent(Navigation.EVENTS.FINISHED, targetShell);
+			}
 		}, { signal: this.abort.signal });
 
 		// Dispatch request to worker
@@ -238,12 +274,14 @@ globalThis.vegvisir.Navigation = class Navigation {
 			return;
 		}
 
+		this.#dispatchEvent(Navigation.EVENTS.STARTED, target);
 		target.setAttribute("vv-loading", true);
 		
 		await this.#getPage(target, position, mode);
 		
 		target.setAttribute("vv-loading", false);
 		target.setAttribute("vv-page", this.url.pathname);
+		this.#dispatchEvent(Navigation.EVENTS.FINISHED, target);
 
 		if (target === Navigation.#rootShellElement) {
 			// Set current top page pathname on body tag if root shell is the target
