@@ -19,7 +19,7 @@ globalThis.vegvisir.Navigation = class Navigation {
 		AFTEREND: "afterend",
 		BEFOREEND: "beforeend",
 		AFTERBEGIN: "afterbegin",
-		BEFOREBEGIN: "beforebegin",
+		BEFOREBEGIN: "beforebegin"
 	};
 
 	static MODE = {
@@ -263,7 +263,7 @@ globalThis.vegvisir.Navigation = class Navigation {
 
 	/**
 	 * Navigate an HTMLElement or Navigation.TARGET to the instanced URL
-	 * @param {HTMLElement|Navigation.TARGET} target 
+	 * @param {HTMLElement} target 
 	 * @param {Navigation.POSITION} position 
 	 * @param {Navigation.MODE} mode 
 	 */
